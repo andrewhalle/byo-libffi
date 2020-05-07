@@ -1,0 +1,18 @@
+[2020-05-06T18:09:15-0700] I can break python by doing `mv /usr/lib/libffi.so.7 /usr/lib/alibffi.so.7`
+                           then doing `python -c 'import ctypes'` so I can use python as a test case
+                           for my libffi clone and install my clone at this location
+[2020-05-06T18:11:28-0700] need to set up a virtual machine so I don't completely bork my system.
+[2020-05-06T18:12:12-0700] will just use vagrant
+[2020-05-06T18:17:06-0700] sudo pacman -S vagrant
+                           sudo pacman -S libvirt
+                           sudo systemctl enable libvirtd
+                           sudo systemctl start libvirtd
+                           vagrant plugin install vagrant-libvirt
+                           sudo pacman -S ebtables dnsmasq
+                           sudo systemctl restart libvirt
+                           vagrant init generic/arch
+                           vagrant up --provider=libvirt
+[2020-05-06T19:36:26-0700] the above was failing on waiting for the IP address for a while, but then
+                           worked when I destroyed and re `up`d. weird. anyway, in the box, I can install
+                           python, `ldconfig -p | grep ffi` and `rm /usr/lib/libffi.so.7` then try importing
+                           ctypes in python, and I get the failure.
