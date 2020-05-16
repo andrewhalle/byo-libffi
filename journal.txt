@@ -42,4 +42,4 @@
 [2020-05-15T19:12:34-0700] use NASM to write function runtime_call
 [2020-05-15T20:03:21-0700] better compiler explorer link https://godbolt.org/z/yTaHL6
 [2020-05-15T20:07:44-0700] copy the assembly from there, and we have a segfault!
-[2020-05-15T20:07:56-0700] git commit
+[2020-05-15T20:07:56-0700] git commit 03f737841f966df978341153023a2ac5f565f95e
