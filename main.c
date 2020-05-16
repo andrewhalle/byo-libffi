@@ -8,6 +8,7 @@
 typedef struct {
   int x;
   int y;
+  void *func;
 } callable;
 
 // this is the function we'll write in assembly
@@ -18,7 +19,7 @@ void runtime_call(void *c, void *ret);
 int main(void) {
   void *handle = dlopen("./libadd.so", RTLD_NOW);
   void *add = dlsym(handle, "add");
-  callable c = { 1, 2 };
+  callable c = { 1, 2, add };
   int x;
   runtime_call(&c, &x);
   printf("1 + 2 = %d\n", x);

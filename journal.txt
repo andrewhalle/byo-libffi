@@ -43,3 +43,9 @@
 [2020-05-15T20:03:21-0700] better compiler explorer link https://godbolt.org/z/yTaHL6
 [2020-05-15T20:07:44-0700] copy the assembly from there, and we have a segfault!
 [2020-05-15T20:07:56-0700] git commit 03f737841f966df978341153023a2ac5f565f95e
+[2020-05-16T12:30:39-0700] just forgot to add the address of the function to the callable
+                           struct, which was different from the layout of what I put into
+                           compiler explorer, so, segfault
+[2020-05-16T12:31:32-0700] think the next step is to write a verison of runtime-call that can
+                           handle a runtime specified number of ints (restrict the type because
+                           I don't know how I'm going to handle differently sized types yet)
