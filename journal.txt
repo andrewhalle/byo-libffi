@@ -13,6 +13,25 @@
                            vagrant init generic/arch
                            vagrant up --provider=libvirt
 [2020-05-06T19:36:26-0700] the above was failing on waiting for the IP address for a while, but then
-                           worked when I destroyed and re `up`d. weird. anyway, in the box, I can install
-                           python, `ldconfig -p | grep ffi` and `rm /usr/lib/libffi.so.7` then try importing
+                           worked when I destroyed and re `up`d. weird. anyway, in the box, I can
+                           install python,
+                           `ldconfig -p | grep ffi` and `rm /usr/lib/libffi.so.7` then try importing
                            ctypes in python, and I get the failure.
+[2020-05-15T18:49:38-0700] some notes from the last week
+[2020-05-15T18:49:52-0700] going to need to brush up on my assembly
+[2020-05-15T18:50:08-0700] couple of resources to that effect
+[2020-05-15T18:50:17-0700] https://www.cs.virginia.edu/~evans/cs216/guides/x86.html
+                             - a good guide to assembly
+[2020-05-15T18:51:32-0700] https://courses.cs.washington.edu/courses/cse378/10au/sections/Section1_recap.pdf
+                             for the order in which arguments are passed in registers
+[2020-05-15T18:52:59-0700] instead of starting with the python example, build to that.
+                           start with a simple C example, build up my own interface, then
+                           look at the interface exposed by the real libffi and map mine to that
+[2020-05-15T18:53:42-0700] start with add function, compiled into a shared library, function type
+                           specified at compile time
+[2020-05-15T18:57:22-0700] https://linux.die.net/man/3/dlopen
+[2020-05-15T19:06:01-0700] > clang -shared -fPIC -o libadd.so add.c
+                           > clang -o main -ldl main.c
+                           > ./main
+                           1 + 2 = 3
+[2020-05-15T19:06:48-0700] git commit 
