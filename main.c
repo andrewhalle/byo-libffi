@@ -1,10 +1,25 @@
 #include <stdio.h>
 #include <dlfcn.h>
 
-typedef int (*add_func)(int, int);
+// not allowed to put this, else the compiler will helpfully generate
+// code to call a function with this signature for us
+// typedef int (*add_func)(int, int);
+
+typedef struct {
+  int x;
+  int y;
+} callable;
+
+// this is the function we'll write in assembly
+// takes a pointer to a callable, and a pointer to where
+// to store the return
+void runtime_call(void *c, void *ret);
 
 int main(void) {
   void *handle = dlopen("./libadd.so", RTLD_NOW);
-  add_func add = (add_func) dlsym(handle, "add");
-  printf("1 + 2 = %d\n", add(1, 2));
+  void *add = dlsym(handle, "add");
+  callable c = { 1, 2 };
+  int x;
+  runtime_call(&c, &x);
+  printf("1 + 2 = %d\n", x);
 }

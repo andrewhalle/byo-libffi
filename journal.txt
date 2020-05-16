@@ -35,3 +35,11 @@
                            > ./main
                            1 + 2 = 3
 [2020-05-15T19:06:48-0700] git commit 81048009d824a68a4e13cd0fb2236e3f58ac4082
+[2020-05-15T19:08:37-0700] now, remove the typedef, and write some assembly to call the function
+[2020-05-15T19:09:06-0700] compiler explorer to the rescue https://godbolt.org/z/U_prQu
+[2020-05-15T19:11:44-0700] write a function that calls this assembly at runtime with a pointer
+                           to where we know the function is from dlsym
+[2020-05-15T19:12:34-0700] use NASM to write function runtime_call
+[2020-05-15T20:03:21-0700] better compiler explorer link https://godbolt.org/z/yTaHL6
+[2020-05-15T20:07:44-0700] copy the assembly from there, and we have a segfault!
+[2020-05-15T20:07:56-0700] git commit
