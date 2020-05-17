@@ -49,3 +49,11 @@
 [2020-05-16T12:31:32-0700] think the next step is to write a verison of runtime-call that can
                            handle a runtime specified number of ints (restrict the type because
                            I don't know how I'm going to handle differently sized types yet)
+[2020-05-17T11:11:02-0700] how to encode the calling convention in assembly
+[2020-05-17T11:11:30-0700] what I'd like to do in C is create an array ["rdi", "rsi"] etc,
+                           loop over the function arguments and load them into registers
+                           in order, then push whatever's leftover to the stack. Since I can't
+                           do that, I'll instead write all the instructions to move arguments
+                           into registers, then jump to the right instruction based on how
+                           many arguments there are. Any leftover arguments will go through a loop
+                           that pushes an argument and increments to the next.
