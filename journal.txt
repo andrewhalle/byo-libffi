@@ -78,3 +78,5 @@
 [2020-05-19T22:50:50-0700] 1 + 2 = 21936
 [2020-05-19T22:50:58-0700] not a segfault!
 [2020-05-19T22:51:02-0700] what in the world am I passing as arguments?
+[2020-05-19T22:52:55-0700] actually passing the right thing! must be corrupting the return value
+                           somehow

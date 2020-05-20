@@ -47,9 +47,8 @@ runtime_call:  push    rbp       ; prelude, move the address of the callable and
                mov     rbx, QWORD [rbx]
 							 call    rbx
 
-               mov     rbx, QWORD [rbp-40]  ; move addr of retval into rbx
-               mov     rbx, QWORD [rbx+8]
-               mov     DWORD [rbx], eax     ; retval is now in eax
+               mov     rbx, QWORD [rbp-48]  ; move addr of retval into rbx
+               mov     DWORD [rbx], eax     ; move retval (currently in eax) into retval
 
                mov     rbx, QWORD [rbp-8]   ; restore rbx
                leave
