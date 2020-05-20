@@ -40,9 +40,9 @@ int main(void) {
   add_arg_callable(&c, 5);
   add_arg_callable(&c, 6);
   add_arg_callable(&c, 7);
-  add_arg_callable(&c, 8);
-  add_arg_callable(&c, 9);
-  add_arg_callable(&c, 10);
+  //add_arg_callable(&c, 8);
+  //add_arg_callable(&c, 9);
+  //add_arg_callable(&c, 10);
 
   int x;
   runtime_call(&c, &x);
