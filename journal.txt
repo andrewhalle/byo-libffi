@@ -57,3 +57,10 @@
                            into registers, then jump to the right instruction based on how
                            many arguments there are. Any leftover arguments will go through a loop
                            that pushes an argument and increments to the next.
+[2020-05-19T21:38:50-0700] https://godbolt.org/z/hnscAH
+[2020-05-19T21:39:04-0700] can use the above as a template, basically confirms my skeleton
+[2020-05-19T21:46:11-0700] by the way, if links to the compiler explorer prove anything, it's
+                           that serious magic goes into compilers. I won't be striving for
+                           efficiency, I just want something that works.
+                           https://www.youtube.com/watch?v=w0sz5WbS5AM for more
+[2020-05-19T21:51:51-0700] also found this https://cs61.seas.harvard.edu/site/2018/Asm2/

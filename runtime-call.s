@@ -1,46 +1,43 @@
 global runtime_call
 
 section .text
-runtime_call:  push    rbp
-               mov     rbp, rsp
-               sub     rsp, 48
+runtime_call:  push    rbp       ; prelude, move the address of the callable and the
+               mov     rbp, rsp  ; retval into memory
+               push    rbx
+               sub     rsp, 40
                mov     QWORD [rbp-40], rdi
                mov     QWORD [rbp-48], rsi
-               mov     rax, QWORD [rbp-40]
-               mov     QWORD [rbp-8], rax
-               mov     rax, QWORD [rbp-48]
-               mov     QWORD [rbp-16], rax
-               mov     rax, QWORD [rbp-8]
-               mov     rax, QWORD [rax+8]
-               mov     QWORD [rbp-24], rax
-               mov     rax, QWORD [rbp-8]
-               mov     edx, DWORD [rax+4]
-               mov     rax, QWORD [rbp-8]
-               mov     eax, DWORD [rax]
-               mov     rcx, QWORD [rbp-24]
-               mov     esi, edx
-               mov     edi, eax
-               call    rcx
-               mov     rdx, QWORD [rbp-16]
-               mov     DWORD [rdx], eax
-               nop
+
+               mov     rbx, QWORD [rbp-40]  ; move the pointer pointing to the array
+               mov     rbx, QWORD [rbx+8]   ; of ints which will be our args into rbx
+
+               mov     rax, QWORD [rbp-40]  ; put n_args in eax
+               mov     eax, DWORD [rax+16]
+
+.loop_start:   cmp     eax, 6
+							 jle     .loop_done
+							 mov     r10d, DWORD [rbx + 4 * rax]
+							 push    r10
+							 dec     eax
+							 jmp     .loop_start
+
+.loop_done:    neg     eax           ; want to jmp on 6 - n_args
+               add     eax, 6
+							 jmp     rax
+               mov     r9d, DWORD [rbx + 4 * 5] ; order of registers is the calling convention
+               mov     r8d, DWORD [rbx + 4 * 4]
+               mov     ecx, DWORD [rbx + 4 * 3]
+               mov     edx, DWORD [rbx + 4 * 2]
+               mov     esi, DWORD [rbx + 4 * 1]
+               mov     edi, DWORD [rbx + 4 * 0]
+
+               mov     rbx, QWORD [rbp-40]  ; move addr of function into rbx
+							 call    rbx
+
+               mov     rbx, QWORD [rbp-40]  ; move addr of retval into rbx
+               mov     rbx, QWORD [rbx+8]
+               mov     DWORD [rbx], eax     ; retval is now in eax
+
+               mov     rbx, QWORD [rbp-8]   ; restore rbx
                leave
                ret
-
-				while (n_args > 6) {
-					push    6           ; push additional arguments onto the stack
-					n_args--            ; don't actually decrement n_args, make a copy
-				}
-
-				jmp     6 - n_args    ; if we have 6 args, this doesn't jump and pushes
-				                      ; into all registers
-															; if we have less than 6 arguments, this skips the
-															; unneeded registers
-
-        mov     r9d, 5 ; order of registers is the calling convention
-        mov     r8d, 4
-        mov     ecx, 3
-        mov     edx, 2
-        mov     esi, 1
-        mov     edi, 0
-
