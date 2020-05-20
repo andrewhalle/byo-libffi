@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <dlfcn.h>
+#include <stdlib.h>
 
 // not allowed to put this, else the compiler will helpfully generate
 // code to call a function with this signature for us

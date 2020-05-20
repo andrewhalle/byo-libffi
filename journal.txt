@@ -68,3 +68,4 @@
                            can be referenced (e.g. can't jmp eax in 64-bit mode) workaround
                            is to mov into the 32-bit version to zero out the upper part of
                            the register, then reference the 64 bit version
+[2020-05-19T22:26:12-0700] nasm -f elf64 runtime-call.s
