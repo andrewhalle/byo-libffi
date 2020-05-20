@@ -80,3 +80,7 @@
 [2020-05-19T22:51:02-0700] what in the world am I passing as arguments?
 [2020-05-19T22:52:55-0700] actually passing the right thing! must be corrupting the return value
                            somehow
+[2020-05-19T23:04:22-0700] working! really just had the wrong address for retval
+[2020-05-19T23:04:46-0700] 2 and 3 args works, 10 args doesn't crash, but returns the wrong
+                           answer for 10 (sum of natural numbers, returns 48 when it should
+                           return 55)
