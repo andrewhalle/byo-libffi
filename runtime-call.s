@@ -21,17 +21,30 @@ runtime_call:  push    rbp       ; prelude, move the address of the callable and
 							 dec     eax
 							 jmp     .loop_start
 
-.loop_done:    neg     eax           ; want to jmp on 6 - n_args
-               add     eax, 6
-							 jmp     rax
-               mov     r9d, DWORD [rbx + 4 * 5] ; order of registers is the calling convention
-               mov     r8d, DWORD [rbx + 4 * 4]
-               mov     ecx, DWORD [rbx + 4 * 3]
-               mov     edx, DWORD [rbx + 4 * 2]
-               mov     esi, DWORD [rbx + 4 * 1]
-               mov     edi, DWORD [rbx + 4 * 0]
+.loop_done:    cmp     eax, 6
+               je      .six_args
+							 cmp     eax, 5
+							 je      .five_args
+							 cmp     eax, 4
+							 je      .four_args
+							 cmp     eax, 3
+							 je      .three_args
+							 cmp     eax, 2
+							 je      .two_args
+							 cmp     eax, 1
+							 je      .one_arg
+							 cmp     eax, 0
+							 je      .zero_args
 
-               mov     rbx, QWORD [rbp-40]  ; move addr of function into rbx
+.six_args:     mov     r9d, DWORD [rbx + 4 * 5] ; order of registers is the calling convention
+.five_args:    mov     r8d, DWORD [rbx + 4 * 4]
+.four_args:    mov     ecx, DWORD [rbx + 4 * 3]
+.three_args:   mov     edx, DWORD [rbx + 4 * 2]
+.two_args:     mov     esi, DWORD [rbx + 4 * 1]
+.one_arg:      mov     edi, DWORD [rbx + 4 * 0]
+
+.zero_args:    mov     rbx, QWORD [rbp-40]  ; move addr of function into rbx
+               mov     rbx, QWORD [rbx]
 							 call    rbx
 
                mov     rbx, QWORD [rbp-40]  ; move addr of retval into rbx

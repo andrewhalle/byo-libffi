@@ -69,3 +69,12 @@
                            is to mov into the 32-bit version to zero out the upper part of
                            the register, then reference the 64 bit version
 [2020-05-19T22:26:12-0700] nasm -f elf64 runtime-call.s
+[2020-05-19T22:28:42-0700] segfault is coming from the jmp instruction, cannot access memory
+                           at 0x4 (good because computing jmp correctly, just need to figure
+                           out how to make it relative)
+[2020-05-19T22:33:33-0700] maybe relative jumps with a computed value aren't really possible
+                           in 64-bit mode. Need to look more into this. In the meantime, can
+                           achieve the same thing with a bit of a nasty cmp / label scheme
+[2020-05-19T22:50:50-0700] 1 + 2 = 21936
+[2020-05-19T22:50:58-0700] not a segfault!
+[2020-05-19T22:51:02-0700] what in the world am I passing as arguments?
