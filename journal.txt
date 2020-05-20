@@ -64,3 +64,7 @@
                            efficiency, I just want something that works.
                            https://www.youtube.com/watch?v=w0sz5WbS5AM for more
 [2020-05-19T21:51:51-0700] also found this https://cs61.seas.harvard.edu/site/2018/Asm2/
+[2020-05-19T22:24:38-0700] note to self, certain registers have restrictions on where they
+                           can be referenced (e.g. can't jmp eax in 64-bit mode) workaround
+                           is to mov into the 32-bit version to zero out the upper part of
+                           the register, then reference the 64 bit version
