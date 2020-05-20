@@ -84,3 +84,5 @@
 [2020-05-19T23:04:46-0700] 2 and 3 args works, 10 args doesn't crash, but returns the wrong
                            answer for 10 (sum of natural numbers, returns 48 when it should
                            return 55)
+[2020-05-19T23:11:22-0700] seems to be working (cursory glance) up to 6 args, only when it needs
+                           to start pushing onto the stack does it return the wrong answer
