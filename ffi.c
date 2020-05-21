@@ -26,10 +26,6 @@ ffi_status ffi_prep_cif(
   return FFI_OK;
 }
 
-void ffi_call(ffi_cif *cif, void *fn, void *retval, void *args) {
-  printf("calling with n_args: %d\n", cif->n_args);
-}
-
 void ffi_call(ffi_cif *cif, void *fn, void *retval, void **args) {
   unsigned int n_args = cif->n_args;
   cif->func = fn;
