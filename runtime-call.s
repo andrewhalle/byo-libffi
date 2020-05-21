@@ -16,7 +16,7 @@ runtime_call:  push    rbp       ; prelude, move the address of the callable and
 
 .loop_start:   cmp     eax, 6
 							 jle     .loop_done
-							 mov     r10d, DWORD [rbx + 4 * rax]
+							 mov     r10d, DWORD [rbx + 4 * (rax - 1)]
 							 push    r10
 							 dec     eax
 							 jmp     .loop_start
