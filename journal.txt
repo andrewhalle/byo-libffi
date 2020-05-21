@@ -111,3 +111,5 @@
 [2020-05-20T18:40:43-0700] it's 0
 [2020-05-20T18:44:36-0700] that's enough to actually end up with a value (it's garbage, whatever
                            was in the memory for the return value when it was initialized)
+[2020-05-20T19:22:22-0700] success! only needed to implement ffi_prep_cif and ffi_call, pass some
+                           information between them using the cif (callable)
