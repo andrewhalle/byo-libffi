@@ -30,4 +30,17 @@ void ffi_call(ffi_cif *cif, void *fn, void *retval, void *args) {
   printf("calling with n_args: %d\n", cif->n_args);
 }
 
+void ffi_call(ffi_cif *cif, void *fn, void *retval, void **args) {
+  unsigned int n_args = cif->n_args;
+  cif->func = fn;
+  init_callable(cif);
+
+  // actually add the arguments to the callable
+  for (int i = 0; i < n_args; i++) {
+    add_arg_callable(cif, *((int*) args[i]));
+  }
+
+  runtime_call((void*) cif, retval);
+}
+
 void ffi_prep_closure_loc(void) {}
