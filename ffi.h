@@ -1,6 +1,10 @@
 #ifndef _LIBFFI_CLONE_H
 #define _LIBFFI_CLONE_H
 
+typedef enum {
+  FFI_OK = 0,
+} ffi_status;
+
 typedef struct {
   void *func;
   int *args;

@@ -87,3 +87,27 @@
 [2020-05-19T23:11:22-0700] seems to be working (cursory glance) up to 6 args, only when it needs
                            to start pushing onto the stack does it return the wrong answer
 [2020-05-20T17:28:19-0700] off by 1 error. classic
+[2020-05-20T17:48:15-0700] refactored a bit to produce libffi.so, now the task of trying to
+                           replace the actual libffi in the vagrant vm
+[2020-05-20T17:48:54-0700] plan is to write a test program in python that loads libadd and calls
+                           the add program, try replacing libffi.so, and write a compatibility
+                           layer, replacing all functions that python tries to call from libffi.
+                           For the most part, I'll ignore the more general arugments, since I know
+                           ahead of time that the arguments will be integers and return an integer
+                           (since that's all it currently supports)
+[2020-05-20T18:15:57-0700] first try, oh no, undefined symbol ffi_closure_alloc
+[2020-05-20T18:16:33-0700] don't like the look of that
+[2020-05-20T18:16:39-0700] was expecting ffi_prep_cif and ffi_call, not to have to deal with
+                           closures
+[2020-05-20T18:25:20-0700] super cool, libLLVM-10.so depends on libffi, so I have to be careful
+                           about deleting it in my VM, else I'm not going to be able to compile
+                           things
+[2020-05-20T18:37:44-0700] so far, just stubbing out all the closure functions seems to be working
+[2020-05-20T18:37:56-0700] now getting error ffi_prep_cif failed and it shows the line in test.py
+                           where add is called, so I think that's a good sign
+[2020-05-20T18:38:34-0700] man ffi_prep_cif, see what arguments it takes
+[2020-05-20T18:40:02-0700] first, I know I need to return FFI_OK. look in ffi.h to find out what
+                           value that is
+[2020-05-20T18:40:43-0700] it's 0
+[2020-05-20T18:44:36-0700] that's enough to actually end up with a value (it's garbage, whatever
+                           was in the memory for the return value when it was initialized)
