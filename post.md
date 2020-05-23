@@ -456,12 +456,254 @@ And that's it! We can now call dynamically loaded functions at runtime, without 
 their signatures at compile time. All that's left to do is make this compatible with the real
 libffi, and we should be able to use our library with Python.
 
-## Writing a Compatability Layer
+## Writing a Compatibility Layer
+
+First, let me prove that the Python interpreter does in fact use libffi to accomplish this
+task. Let us consider the test program
+
+```python
+from ctypes import cdll
+
+libadd = cdll.LoadLibrary('./libadd.so')
+result = libadd.add(1,2,3,4,5,6,7,8,9,10)
+print(result)
+```
+
+where `libadd.so` is our previously compiled `add` function, in this case, with 10 arguments.
+
+Running this in our VM (`vagrant up; vagrant ssh; python test.py`) produces the correct answer
+of 55.
+
+Now, let's look for `libffi.so` (we know from the libffi docs that we link with libffi using
+`-lffi` so the file is probably called `libffi.so` per convention). If we run
+
+```bash
+ldconfig -p | grep ffi
+```
+
+we'll see the output
+
+```
+libffi.so.7 (libc6,x86-64) => /usr/lib/libffi.so.7
+libffi.so (libc6,x86-64) => /usr/lib/libffi.so
+```
+
+So if we compile our `libffi.so` and replace these files, we can inject our version of
+libffi into the system.
+
+_**NOTE: don't actually do this on your system. libffi is incredibily important for a lot
+of things (even LLVM links with libffi) so if you remove it on your actual computer, you
+won't be able to do a lot of important things. I've included a Vagrantfile for testing,
+you can do this on any virtual machine**_
+
+I've restructured our implementation of libffi into `ffi.h` and `ffi.c`, which we can now
+compile into `libffi.so` with
+
+```bash
+nasm -f elf64 runtime-call.s
+clang -shared -fPIC -o libffi.so ffi.c runtime-call.o
+```
+
+If we replace the system libffi (again, not on your actual system) with our compiled artifact,
+and try to run the test python program, we'll get the following error
+
+```
+$ python test.py
+Traceback (most recent call last):
+  File "test.py", line 1, in <module>
+    from ctypes import cdll
+  File "/usr/lib/python3.8/ctypes/__init__.py", line 7, in <module>
+    from _ctypes import Union, Structure, Array
+ImportError: /usr/lib/python3.8/lib-dynload/_ctypes.cpython-38-x86_64-linux-gnu.so: undefined symbol: ffi_closure_alloc, version LIBFFI_CLOSURE_7.0
+```
+
+Okay, now we're getting somewhere. This error is happening because Python is loading in our
+`libffi.so` and looking for symbols that don't currently exist, but should exist according
+to the API offered by libffi. Let's look at the man pages for libffi
+
+```
+$ man ffi
+FFI(3)                                BSD Library Functions Manual                               FFI(3)
+
+NAME
+     FFI — Foreign Function Interface
+
+LIBRARY
+     libffi, -lffi
+
+SYNOPSIS
+     #include <ffi.h>
+
+     ffi_status
+     ffi_prep_cif(ffi_cif *cif, ffi_abi abi, unsigned int nargs, ffi_type *rtype, ffi_type **atypes);
+
+     void
+     ffi_prep_cif_var(ffi_cif *cif, ffi_abi abi, unsigned int nfixedargs, unsigned int ntotalargs,
+         ffi_type *rtype, ffi_type **atypes);
+
+     void
+     ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue);
+
+DESCRIPTION
+     The foreign function interface provides a mechanism by which a function can generate a call to an‐
+     other function at runtime without requiring knowledge of the called function's interface at com‐
+     pile time.
+
+SEE ALSO
+     ffi_prep_cif(3), ffi_prep_cif_var(3), ffi_call(3)
+
+                                           February 15, 2008
+```
+
+Clearly we'll need a struct `ffi_cif` (which is the equivalent of our `callable`) and functions
+`ffi_prep_cif` (the equivalent of our `init` function) and `ffi_call` (the equivalent of our
+`runtime_call`). Note, I didn't learn all this just from the output above, I had to read the other
+man pages for libffi (listed in the `SEE ALSO`).
+
+One interesting thing to note, I don't see `ffi_closure_alloc` anywhere in this API. As far as I
+can tell, these are optional symbols included by libffi for offering closure type functionality.
+I think I got incredibly lucky in that they don't actually have to do anything for the simple case
+we've already implemented, they just have to exist. So, we can define empty functions with these
+names (going back and forth with python to see what it complains about missing) to move forward.
+
+The resulting code is:
+
+```c
+void ffi_closure_alloc(void) {}
+void ffi_closure_free(void) {}
+void ffi_prep_cif(void) {}
+void ffi_call(void) {}
+void ffi_prep_closure_loc(void) {}
+```
+
+When we now run our test script, we get
+
+```
+$ python test.py
+$ python test.py
+Traceback (most recent call last):
+  File "test.py", line 4, in <module>
+      result = libadd.add(1,2,3)
+      RuntimeError: ffi_prep_cif failed
+
+```
+
+Okay, at this point, we have to actually look at the header file `ffi.h` provided by libffi
+to figure out what value we're supposed to return from `ffi_prep_cif` to indicate success,
+and what `ffi_prep_cif` and `ffi_call` are supposed to do.
+
+`ffi_prep_cif` is supposed to set up the `ffi_cif` object with the types the function is
+supposed to take. Since we've restricted ourselves to functions that only take integers and
+return an integer, we're only interested in `n_args`.
+
+`ffi_call` passes a pointer to an array of `void*` which are the arguments we're passing to
+the function, and a `void*` indicating where to put the reuslt. At this point, you may notice
+our `callable` struct is not exactly mappable to `ffi_cif` because the `callable` struct stores
+its arguments, whereas `ffi_cif` does not. We can get around this in a hacky way (if we were
+writing an actual library, I would actually fix this). We'll do the following: when `ffi_prep_cif`
+is called, store the number of arguments we're expecting. When `ffi_call` is called, grab `n_args`
+from the `callable`, then re-init it, and add the arguments using our previously defined function.
+Then, call `runtime_call` to actually invoke the function.
+
+The final code is below:
+
+```c
+// ffi.h
+#ifndef _LIBFFI_CLONE_H
+#define _LIBFFI_CLONE_H
+
+typedef enum {
+  FFI_OK = 0,
+} ffi_status;
+
+// only one supported
+typedef enum {
+  SYSVAMD64 = 0,
+} ffi_abi;
+
+typedef struct {
+  void *func;
+  int *args;
+  int n_args;
+} callable;
+
+typedef callable ffi_cif;
+
+void init_callable(callable *c);
+void add_arg_callable(callable *c, int arg);
+void runtime_call(void *c, void *ret);
+
+#endif
+
+// ffi.c
+
+#include <stdlib.h>
+#include <stdio.h>
+#include "./ffi.h"
+
+void init_callable(callable *c) {
+  c->args = (int*) malloc(16 * sizeof(int));
+  c->n_args = 0;
+}
+
+void add_arg_callable(callable *c, int arg) {
+  c->args[c->n_args] = arg;
+  c->n_args++;
+}
+
+void ffi_closure_alloc(void) {}
+void ffi_closure_free(void) {}
+
+ffi_status ffi_prep_cif(
+  ffi_cif *cif,
+  ffi_abi abi,
+  unsigned int nargs,
+  void *ignored1,
+  void *ignored2
+) {
+  cif->n_args = nargs;
+  return FFI_OK;
+}
+
+void ffi_call(ffi_cif *cif, void *fn, void *retval, void **args) {
+  unsigned int n_args = cif->n_args;
+  cif->func = fn;
+  init_callable(cif);
+
+  // actually add the arguments to the callable
+  for (int i = 0; i < n_args; i++) {
+    add_arg_callable(cif, *((int*) args[i]));
+  }
+
+  runtime_call((void*) cif, retval);
+}
+
+void ffi_prep_closure_loc(void) {}
+}
+```
+
+When we compile this, move it to the path normally occupied by libffi, and run our
+test script, it works! We've successfully written an implementation of libffi that's
+API-compatibile with the real libffi and supports a subset of it's functionality.
 
 ## Wrapping Up
+
+At this point, we're done. We've accomplished our goal of calling functions at runtime
+without specifying their type signatures at compile-time, we've made our clone API-compatible
+with the real libffi (through a pattern I quite like, we defined our own API that makes sense
+to us, then written a compatibility layer for backward compatibility), and we've (if you're
+at all like me) become extremely grateful that high quality implementations of this functionality
+already exist. Every new language that wants to offer a foreign function interface doesn't have
+to write their own implementation of this, and libffi is written with more platforms in mind than
+just x86, so this will work across many platforms.
 
 ## Resources / Bibliography
 
 I made use of the following links/resources while writing this post:
 
   * [Compiler Explorer](https://godbolt.org/)
+  * one of Matt's many amazing talks [on YouTube](https://www.youtube.com/watch?v=w0sz5WbS5AM)
+  * [https://www.cs.virginia.edu/~evans/cs216/guides/x86.html](https://www.cs.virginia.edu/~evans/cs216/guides/x86.html)
+  * [https://courses.cs.washington.edu/courses/cse378/10au/sections/Section1_recap.pdf](https://courses.cs.washington.edu/courses/cse378/10au/sections/Section1_recap.pdf)
+  * [https://linux.die.net/man/3/dlopen](https://linux.die.net/man/3/dlopen)
+  * [https://cs61.seas.harvard.edu/site/2018/Asm2/](https://cs61.seas.harvard.edu/site/2018/Asm2/)
