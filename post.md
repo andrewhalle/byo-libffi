@@ -275,11 +275,193 @@ main:
 clearly parallels what we're trying to do. And indeed, if we copy the assembly output
 into a file `runtime-call.s`, build it with `nasm -f elf64 runtime-call.s` and link the
 resulting object file with our `main.c` we'll successfully call this function! (this state
-of the code is given by commit 03f737841f966df978341153023a2ac5f565f95e of the repo for
-this post).
+of the code is given by commit [ca946232a8545bdb7389be7159abf504d3f5a168](https://github.com/andrewhalle/clone-libffi/tree/ca946232a8545bdb7389be7159abf504d3f5a168)
+of the repo for this post).
 
 ## Calling Any Function
+
+Okay, the last section was kind of cheating. We only allowed for one possible signature of
+the function we might call, so we could copy the compiler output to put the arguments in
+the right place. We haven't done anything yet! In this section, we'll make our `runtime_call`
+function generic enough to handle functions that take any number of `int`s as arguments, and
+return a single `int`.
+
+_(the leap from here to supporting functions that take and return variables of different type is
+not trivial, but I think also not very instructive. In order to actually finish this post, I
+decided to stop here and restrict my libffi to only work with functions of this type. For more
+information on supporting functions that take arbitrary types of arguments, see one of the links
+in the Resources)_
+
+For this section, we'll actually need to figure out what the calling convention on our platform
+is (I'm using Linux, and include a `Vagrantfile` for a Linux VM in the repo). We'll be
+implementing the calling convention for 64bit linux, which is known officially as 
+"System V AMD64 ABI" (see [this link](https://cs61.seas.harvard.edu/site/2018/Asm2/) for
+more information).
+
+We're interested in the following aspects of this ABI (the following points are quotes from
+the above link)
+
+> On x86-64 Linux, the first six function arguments are passed in registers
+> %rdi, %rsi, %rdx, %rcx, %r8, and %r9, respectively. The seventh and subsequent
+> arguments are passed on the stack, about which more below. The return value is
+> passed in register %rax.
+
+That link uses AT&T syntax for registers, while Compiler Explorer and NASM default to
+using Intel syntax.
+
+If we imagine we have the following high-level functions (Python syntax for clarity):
+
+  * `push_stack(value)`: pushes `value` onto the hardware stack, equivalent to the `push`
+    instruction
+  * `overwrite_register(register, value)`: puts `value` into `register` (where `register`
+    is the string name of the register), equivalent to the instruction `mov  reg, value`
+  * `call(func)`: jump to the function at address `func`, equivalent to the instruction
+    `call`
+  * `register_value(register)`: returns the value of `register` (where `register` is the
+    string name of the register)
+
+then we could implement this ABI in the following way
+
+```python
+def runtime_call(func, args):
+    argument_registers = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
+    
+    # push additional arguments onto the stack in reverse order
+    while len(args) > 6:
+        push_stack(args.pop())
+
+    # put first six arguments in the correct registers
+    for i in range(len(args)):
+        overwrite_register(argument_registers[i], args[i])
+
+    call(func)
+
+    return register_value('rax')
+```
+
+There's one complication to writing this function in assembly. The `overwrite_register`
+function takes a string description of the register and loads a value into it. We don't
+want to actually resort to string comparisons to determine the register we're loading into.
+We'll instead include the instructions for loading all 6 arguments into registers in the
+`runtime_call` function, and then jump over the ones we don't want to execute. Since assembly
+executes instructions sequentially, this means we have to list out these instructions in reverse
+order (since if we have less than 6 arguments, we'll have to jump over the instructions which
+load the later arguments that we don't actually have).
+
+The interesting part of the assembly is listed below (look in the repo for the full function):
+
+```asm
+.loop_start:   cmp     eax, 6      ; we want to do this for as long as the number of arguments
+               jle     .loop_done  ; (currently in eax) is greater than 6
+               mov     r10d, DWORD [rbx + 4 * (rax - 1)] ; rbx stores the pointer to the arguments
+               push    r10
+               dec     eax
+               jmp     .loop_start
+
+.loop_done:    cmp     eax, 6      ; since 64bit NASM doesn't allow relative jumps (as
+               je      .six_args   ; far as I could tell) we need to explicitly label
+               cmp     eax, 5      ; the lines to jump to, and figure out which one
+               je      .five_args  ; we're jumping to with comparisons on n_args
+               cmp     eax, 4
+               je      .four_args
+               cmp     eax, 3
+               je      .three_args
+               cmp     eax, 2
+               je      .two_args
+               cmp     eax, 1
+               je      .one_arg
+               cmp     eax, 0
+               je      .zero_args
+
+.six_args:     mov     r9d, DWORD [rbx + 4 * 5] ; order of registers is the calling convention
+.five_args:    mov     r8d, DWORD [rbx + 4 * 4]
+.four_args:    mov     ecx, DWORD [rbx + 4 * 3]
+.three_args:   mov     edx, DWORD [rbx + 4 * 2]
+.two_args:     mov     esi, DWORD [rbx + 4 * 1]
+.one_arg:      mov     edi, DWORD [rbx + 4 * 0]
+
+.zero_args:    mov     rbx, QWORD [rbp-40]  ; move addr of function into rbx
+               mov     rbx, QWORD [rbx]
+               call    rbx
+
+               mov     rbx, QWORD [rbp-48]  ; move addr of retval into rbx
+               mov     DWORD [rbx], eax     ; move retval (currently in eax) into retval
+
+```
+
+Some notes about this assembly:
+
+  * we can reference registers by different names depending on whether we want to treat them
+    as 64bit registers or 32 bit registers. In this example, `eax` refers to the 32bit version
+    of `rax` (the upper 32 bits will be zeroed) and `r8d` refers to the 32bit version of `r8`
+    (the `d` for "double word" indicates this is 4 bytes, as the x86 word size is 16 bits)
+  * we assume values are `DWORD` because we've previously stated we only want to work with `int`s
+    which on my platform (not all platforms!) is 4 bytes.
+  * there's a prelude to this assembly that puts things like the function address and the retval
+    address in the correct place, I don't think it's important enough to include here, find the
+    full function in the repo.
+
+Our C code will also have to change to support an arbitrary number of arguments. We'll implement
+this by changing the structure to include a pointer to the args, and a couple of functions to
+initialize this structure with a `malloc`'d array and add args to it.
+
+```c
+typedef struct {
+  void *func;
+  int *args;
+  int n_args;
+} callable;
+
+void init_callable(callable *c) {
+  c->args = (int*) malloc(16 * sizeof(int));
+  c->n_args = 0;
+}
+
+void add_arg_callable(callable *c, int arg) {
+  c->args[c->n_args] = arg;
+  c->n_args++;
+}
+```
+
+We can now write C code like the following:
+
+```c
+int main(void) {
+  void *handle = dlopen("./libadd.so", RTLD_NOW);
+  void *add = dlsym(handle, "add");
+
+  callable c = { add };
+  init_callable(&c);
+  add_arg_callable(&c, 1);
+  add_arg_callable(&c, 2);
+  add_arg_callable(&c, 3);
+  add_arg_callable(&c, 4);
+  add_arg_callable(&c, 5);
+  add_arg_callable(&c, 6);
+  add_arg_callable(&c, 7);
+  add_arg_callable(&c, 8);
+  add_arg_callable(&c, 9);
+  add_arg_callable(&c, 10);
+
+  int x;
+  runtime_call(&c, &x);
+  printf("Result: %d\n", x);
+}
+```
+
+where the `add` function has been separately compiled to have the appropriate number of
+arguments.
+
+And that's it! We can now call dynamically loaded functions at runtime, without specifying
+their signatures at compile time. All that's left to do is make this compatible with the real
+libffi, and we should be able to use our library with Python.
 
 ## Writing a Compatability Layer
 
 ## Wrapping Up
+
+## Resources / Bibliography
+
+I made use of the following links/resources while writing this post:
+
+  * [Compiler Explorer](https://godbolt.org/)
